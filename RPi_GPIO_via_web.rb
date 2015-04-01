@@ -7,6 +7,7 @@
 # http://sinatra-org-book.herokuapp.com/
 # https://www.ruby-lang.org/en/documentation/
 # 
+# v0.01   01 April 2015
 
 require 'sinatra'		# required for web server
 require 'sinatra-websocket'	# required for sockets
@@ -336,60 +337,35 @@ __END__
         // front of it
 
         
-        //---------------------------------------------------        
-        // these 3 functions set the displayed LED colour
-        // according to the value of msg
-        //
-        
-        // TO BE COMPLETED ... rather have just one function for LED operations
-//        var f_noNameYet = function(a,b,c) {
-//          return function(indic,msg){
-//              if (indic == 'redLed') {
-//                if (msg == 'on')  {a.style.fill='red'}
-//                if (msg == 'off') {a.style.fill='brown'}
-//              }
-//              if (indic == 'greenLed') {
-//                if (msg == 'on')  {b.style.fill='lightgreen'}
-//                if (msg == 'off') {b.style.fill='darkgreen'}
-//              }
-//              if (indic == 'blueLed') {
-//                if (msg == 'on')  {c.style.fill='dodgerblue'}
-//                if (msg == 'off') {c.style.fill='darkblue'}
-//              }
-//        }(document.getElementById('redLed'),document.getElementById('greenLed'),document.getElementById('blueLed'));
-        // END TO BE COMPLETED
-        
-        var f_red = function(a){
-          return function(msg){
-                 if (msg == 'on') {a.style.fill='red'}
-                 if (msg == 'off') {a.style.fill='brown'}
+        // update GPIO (read/write etc) based on param1 & param2, the first two words in the received message
+        var update_GPIO = function(param1,param2){
+              switch (param1){
+                  case 'redLed','greenLed','blueLed':
+                    update_LEDs(param1, param2)
+                    break;
+                  case 'ADC1':
+                    f_ADC1(param2)
+                    break;
+                  default:
+              }
+        }
+        var update_LEDs = function(a,b,c) {
+          return function(indic,msg){
+              if (indic == 'redLed') {
+                if (msg == 'on')  {a.style.fill='red'}
+                if (msg == 'off') {a.style.fill='brown'}
+              }
+              if (indic == 'greenLed') {
+                if (msg == 'on')  {b.style.fill='lightgreen'}
+                if (msg == 'off') {b.style.fill='darkgreen'}
+              }
+              if (indic == 'blueLed') {
+                if (msg == 'on')  {c.style.fill='dodgerblue'}
+                if (msg == 'off') {c.style.fill='darkblue'}
+              }
           }
-        }(document.getElementById('redLed'));
+        }(document.getElementById('redLed'),document.getElementById('greenLed'),document.getElementById('blueLed'));
         
-        var f_green = function(a){
-          return function(msg){
-                 if (msg == 'on') {a.style.fill='lightgreen'}
-                 if (msg == 'off') {a.style.fill='darkgreen'}
-          }
-        }(document.getElementById('greenLed'));
-        
-        var f_blue = function(a){
-          return function(msg){
-                 if (msg == 'on') {a.style.fill='dodgerblue'}
-                 if (msg == 'off') {a.style.fill='darkblue'}
-          }
-        }(document.getElementById('blueLed'));
-        
-        var f_ADC1 = function(a,b){
-          return function(msg){
-                 a.value = parseInt(msg)
-                 b.innerHTML=msg.toString()
-          }
-        }(document.getElementById('meter1'),document.getElementById('an1'));
-        
-        
-        
-           
         // ws is my websocket connection in the client
         var ws = new WebSocket('ws://' + window.location.host + window.location.pathname);
 
@@ -403,14 +379,16 @@ __END__
         
         ws.onmessage = function(m) { 
           // break the message into parts based on space separator
+          // the first two words are important
           var received_msg = m.data.split(' ');
           var param1 = received_msg[0]
-          if (received_msg.length > 1)
+          if (received_msg.length > 1) {
             var param2 = received_msg[1]
+          } else {
+            var param2 = "-"
+          }
             
-          // if the 1st parameter matches any of the LED object names,
-          // then call the respective function for the LED and also
-          // write to the message box, otherwise just write the message
+	  // build a timestamp
           var d = new Date();
           var hr = d.getHours();
           var mn = d.getMinutes();
@@ -419,25 +397,11 @@ __END__
           mn = pad(mn,2)
           sc = pad(sc,2)
           var timeStamp = '['+hr+':'+mn+':'+sc+'] '
-          switch(param1){
-            case 'redLed':
-              f_red(param2)
-              show(timeStamp+param1+'/'+param2)
-              break;
-            case 'greenLed':
-              f_green(param2)
-              show(timeStamp+param1+'/'+param2)
-              break;
-            case 'blueLed':
-              f_blue(param2)
-              show(timeStamp+param1+'/'+param2)
-              break;
-            case 'ADC1':
-              f_ADC1(param2)
-              break;
-            default: 
-              show(timeStamp+'websocket message: ' +  m.data)
-          };
+          
+          // act on the GPIO pins as necessary
+          update_GPIO(param1,param2)
+          show(timeStamp+param1+'/'+param2)
+          
         };
 
 	// when something is typed in the input box (form), send
