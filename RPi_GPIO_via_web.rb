@@ -8,7 +8,9 @@
 # https://www.ruby-lang.org/en/documentation/
 # 
 # v0.01   01 April 2015
-
+# v0.02   02 April       fixed problem with switch for displaying LEDs in client
+#                        added missing code to display analog input value
+#
 require 'sinatra'		# required for web server
 require 'sinatra-websocket'	# required for sockets
 require 'pi_piper'		# required for GPIO access
@@ -340,11 +342,15 @@ __END__
         // update GPIO (read/write etc) based on param1 & param2, the first two words in the received message
         var update_GPIO = function(param1,param2){
               switch (param1){
-                  case 'redLed','greenLed','blueLed':
+                  case 'redLed':
+                    // fall through
+                  case 'greenLed':
+                    // fall through
+                  case 'blueLed':
                     update_LEDs(param1, param2)
                     break;
                   case 'ADC1':
-                    f_ADC1(param2)
+                    update_Meters(param2)
                     break;
                   default:
               }
@@ -365,6 +371,15 @@ __END__
               }
           }
         }(document.getElementById('redLed'),document.getElementById('greenLed'),document.getElementById('blueLed'));
+        
+        var update_Meters = function(a,b) {
+          return function(x){
+              a.innerHTML = x
+              b.value=parseInt(x)
+              }
+        } (document.getElementById('an1'),document.getElementById('meter1'))
+        
+        
         
         // ws is my websocket connection in the client
         var ws = new WebSocket('ws://' + window.location.host + window.location.pathname);
@@ -400,7 +415,8 @@ __END__
           
           // act on the GPIO pins as necessary
           update_GPIO(param1,param2)
-          show(timeStamp+param1+'/'+param2)
+          //show(timeStamp+param1+'/'+param2)
+          show(timeStamp+m.data)
           
         };
 
