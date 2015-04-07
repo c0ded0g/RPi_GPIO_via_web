@@ -10,7 +10,8 @@
 # v0.01   01 April 2015
 # v0.02   02 April       fixed problem with switch for displaying LEDs in client
 #                        added missing code to display analog input value
-#
+# v0.03   07 April       played around with <div> formatting
+
 require 'sinatra'		# required for web server
 require 'sinatra-websocket'	# required for sockets
 require 'pi_piper'		# required for GPIO access
@@ -129,7 +130,7 @@ get '/' do
       # code block, uses local variable ws
       ws.onopen do |handshake|
         # websocket connection's readyState has changed to 'OPEN'
-        ws.send("Hello World")
+        ws.send("Hello "+request.ip)
         settings.sockets << ws
         # double less than <<
         # adds this websocket to the sockets list variable that was created earlier
@@ -268,26 +269,43 @@ __END__
   <meta charset="UTF-8">
   <title>LED CONTROL PANEL</title>
   <body>
-     <!-- <h1>Control panel</h1> -->
-     <b>control panel</b>
-     <!-- ------------------------ -->
-     <form id="form">
-       <input type="text" id="input" value="send a message"></input>
-     </form>
-     <!-- ------------------------ -->
-     <div id="LEDs" style="background-color:#EEEEEE;height:300px;width:200px;float:left;border:solid 2px black">
-          <svg xmlns="http://www.w3.org/2000/svg">
-          <circle id="redLed"   cx="30"  cy="25" r="10" fill="gray" stroke="black" stroke-width="4"/>
-          <circle id="greenLed" cx="60"  cy="25" r="10" fill="gray" stroke="black" stroke-width="4"/>
-          <circle id="blueLed"  cx="90"  cy="25" r="10" fill="gray" stroke="black" stroke-width="4"/>
-          </svg>
-     </div>
-     <!-- ------------------------ -->
-     <div id="msgs" style="background-color:#99FF99;height:300px;width:200px;float:left;overflow:scroll;
-     border:solid 2px black">
-     </div>
-     <!-- ------------------------ -->
-     <div id="status" style="background-color:#FFD700;height:300px;width:100px;float:left;padding:5px">
+  
+    <div id="container" style="width:600px; height:500px">
+    
+       <div id="header" style="background-color:#FFA500;">
+            <text style="margin-bottom:0;text-align:center;">Control Panel</text>
+            <table width="100%">
+            <!-- th = table header cell, td = table data cell -->
+            <tr>
+                <th align="left">RPi 2</th>
+                <th align="right">Address:Port</th>
+            </tr>
+            <tr>
+                <td align="left"><label id="msg1"></label>you are :</td>
+                <td align="right"><label id="ipaddr"></label></td>
+            </tr>
+            </table>
+       </div>
+       
+       <!-- ------------------------ -->
+       <form id="form" style="background-color:#FFA500;border:solid 2px black">
+         <input type="text" id="input" value="type a command" size="50" maxlength="20"></input>
+       </form>
+       <!-- ------------------------ -->
+
+       <div id="LEDs" style="background-color:#EEEEEE;height:100px;width:186px;border:solid 2px black;position: absolute; top: 110px; left: 10px; ">
+           <svg xmlns="http://www.w3.org/2000/svg">
+           <circle id="redLed"   cx="30"  cy="25" r="10" fill="gray" stroke="black" stroke-width="4"/>
+           <circle id="greenLed" cx="60"  cy="25" r="10" fill="gray" stroke="black" stroke-width="4"/>
+           <circle id="blueLed"  cx="90"  cy="25" r="10" fill="gray" stroke="black" stroke-width="4"/>
+           </svg>
+       </div>
+
+       
+       <div id="msgs" style="background-color:#99FF99;height:296px;width:200px;overflow:scroll;border:solid 2px black;position: absolute; top: 110px; left: 200px; ">
+       </div>
+       
+       <div id="status" style="background-color:#FFD700;width:186px;height:300px;border:solid 2px black;position: absolute; top: 210px; left: 10px; ">
             <b>analog inputs:</b><br>
             <FONT FACE="courier">
             AN1: <label id="an1"></label> <br> <meter id="meter1" x="27" y="20" value="512" min="0" max="1024" low="100" high="900"></meter> <br>
@@ -297,8 +315,13 @@ __END__
             AN5: <label id="an5"></label> <br> <meter id="meter5" x="27" y="20" value="400" min="0" max="1024" low="100" high="900"></meter> <br>
             </FONT>
             </p>
-     </div>
-     <!-- ------------------------ -->
+       </div>
+       
+       <div id="buttons" style="background-color:#99FF99;height:100px;width:200px;border:solid 2px black;position: absolute; top: 410px; left: 200px; ">
+           <input type="button" name="toggleMsgs" id="toggleMsgs" value="MSG on/off" fill="red" style="position: absolute;left:10px; top:10px">
+       </div>
+
+    </div>  
   </body>
   
   <script type="text/javascript">
@@ -314,6 +337,8 @@ __END__
     // benefit: variables declared in the self-executing code
     // are available only within the self-executing code
 
+    var displayMessages = true;
+    
     // add leading zeros to pad out a number 
     function pad(num, size) {
       var s = num+"";
@@ -338,7 +363,6 @@ __END__
         // and the result is that the innerHTML of element msgs has the text 'msg' added to the
         // front of it
 
-        
         // update GPIO (read/write etc) based on param1 & param2, the first two words in the received message
         var update_GPIO = function(param1,param2){
               switch (param1){
@@ -351,6 +375,9 @@ __END__
                     break;
                   case 'ADC1':
                     update_Meters(param2)
+                    break;
+                  case 'Hello':
+                    update_Greeting(param2)
                     break;
                   default:
               }
@@ -379,7 +406,11 @@ __END__
               }
         } (document.getElementById('an1'),document.getElementById('meter1'))
         
-        
+        var update_Greeting = function(a) {
+          return function(x){
+              a.innerHTML = x
+              }
+        } (document.getElementById('ipaddr'))
         
         // ws is my websocket connection in the client
         var ws = new WebSocket('ws://' + window.location.host + window.location.pathname);
@@ -416,7 +447,9 @@ __END__
           // act on the GPIO pins as necessary
           update_GPIO(param1,param2)
           //show(timeStamp+param1+'/'+param2)
-          show(timeStamp+m.data)
+          if (displayMessages) {
+            show(timeStamp+m.data)
+          }
           
         };
 
@@ -454,7 +487,21 @@ __END__
           }
         }(document.getElementById('blueLed'));
 
+
+
+        var toggleMessages = function(i1){
+          i1.onclick = function(){
+            displayMessages = !displayMessages;
+            if (displayMessages) {
+              i1.fill = "green"
+            } else {
+              i1.fill = "red"
+            }
+          }
+        }(document.getElementById('toggleMsgs'));
+        
       })();
+      
     }
   </script>
 </html>
