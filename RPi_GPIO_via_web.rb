@@ -10,7 +10,7 @@
 # v0.01   01 April 2015
 # v0.02   02 April       fixed problem with switch for displaying LEDs in client
 #                        added missing code to display analog input value
-# v0.03   07 April       played around with <div> formatting
+# v0.03   07 April       played around with <div> formatting, resaved
 
 require 'sinatra'		# required for web server
 require 'sinatra-websocket'	# required for sockets
